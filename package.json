@@ -1,0 +1,11 @@
+{
+  "name": "umami-tracking-project",
+  "version": "1.0.0",
+  "description": "Development environment for Umami Tracking WordPress plugin",
+  "scripts": {
+    "env:start": "wp-env start",
+    "env:stop": "wp-env stop",
+    "env:destroy": "wp-env destroy"
+  },
+  "license": "GPL-2.0-or-later"
+}

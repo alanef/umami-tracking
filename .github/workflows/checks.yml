@@ -1,0 +1,66 @@
+name: Quality Checks
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_call:
+
+jobs:
+  quality-checks:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Extract PHP version
+      id: php_version
+      run: |
+        PHP_VERSION=$(grep -oP 'Requires PHP:\s*\K[\d.]+' umami-tracking/umami-tracking.php || echo "7.4")
+        echo "version=$PHP_VERSION" >> $GITHUB_OUTPUT
+
+    - name: Setup PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: ${{ steps.php_version.outputs.version }}
+        tools: composer:v2,  wp-cli
+        coverage: none
+
+    - name: Validate composer.json
+      run: composer validate --no-check-all --no-check-publish
+
+    - name: Install dependencies
+      run: composer install --prefer-dist --no-progress
+
+    - name: Run Security Checks
+      run: composer run-script phpcs-security
+
+    - name: Check PHP Compatibility
+      run: composer run-script phpcompat
+
+    - name: Check version consistency
+      run: |
+        PLUGIN_VERSION=$(grep -oP 'Version:\s*\K[\d.]+' umami-tracking/umami-tracking.php)
+        CONSTANT_VERSION=$(grep -oP "UMAMI_TRACKING_VERSION' ,\s*'\K[\d.]+" umami-tracking/umami-tracking.php)
+        
+        echo "Plugin header version: $PLUGIN_VERSION"
+        echo "Version constant: $CONSTANT_VERSION"
+        
+        if [ "$PLUGIN_VERSION" != "$CONSTANT_VERSION" ]; then
+          echo "Version mismatch detected!"
+          exit 1
+        fi
+    - name: Install WP-CLI dist-archive command
+      run: wp package install wp-cli/dist-archive-command
+
+    - name: Build plugin
+      run: |
+        wp dist-archive ./umami-tracking ./umami-tracking.zip
+        mkdir tmp-build
+        unzip umami-tracking.zip -d tmp-build
+
+    - name: WordPress Plugin Check
+      uses: wordpress/plugin-check-action@v1
+      with:
+        build-dir: 'tmp-build/umami-tracking'
