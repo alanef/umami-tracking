@@ -12,26 +12,17 @@ class Umami_Tracking {
     }
 
     private function __construct() {
-        add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_tracking_script' ) );
+        add_action( 'wp_head', array( $this, 'add_tracking_script' ), 1 );
         add_action( 'admin_menu', array( $this, 'add_settings_page' ) );
         add_action( 'admin_init', array( $this, 'register_settings' ) );
     }
 
-    public function enqueue_tracking_script() {
+    public function add_tracking_script() {
         $website_id = get_option( 'umami_tracking_website_id' );
         if ( ! empty( $website_id ) ) {
-            wp_enqueue_script(
-                'umami-tracking',
-                'https://analytics.fw9.uk/script.js',
-                array(),
-                null,
-                true
-            );
-            wp_add_inline_script(
-                'umami-tracking',
-                'document.querySelector("script[src=\'https://analytics.fw9.uk/script.js\']").setAttribute("data-website-id", "' . esc_attr( $website_id ) . '");',
-                'before'
-            );
+            ?>
+            <script defer src="https://analytics.fw9.uk/script.js" data-website-id="<?php echo esc_attr( $website_id ); ?>"></script>
+            <?php
         }
     }
 
