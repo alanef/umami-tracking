@@ -4,7 +4,7 @@ Donate link: https://alanefortune.com
 Tags: umami, analytics, tracking
 Requires at least: 5.0
 Tested up to: 6.8
-Stable tag: 1.0.1
+Stable tag: 1.0.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -31,6 +31,10 @@ You can find your Website ID in your Umami account under the settings for your w
 1. The Umami Tracking settings page.
 
 == Changelog ==
+
+= 1.0.2 =
+* Fixed release workflow to properly build plugin zip
+* Updated build process to match other plugins
 
 = 1.0.1 =
 * Fixed script injection using wp_enqueue_script with script_loader_tag filter

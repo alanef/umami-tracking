@@ -2,7 +2,7 @@
 # This file is distributed under the same license as the Umami Tracking plugin.
 msgid ""
 msgstr ""
-"Project-Id-Version: Umami Tracking 1.0.1\n"
+"Project-Id-Version: Umami Tracking 1.0.2\n"
 "Report-Msgid-Bugs-To: https://github.com/alanef/umami-tracking/issues\n"
 "POT-Creation-Date: 2024-01-01 00:00:00+00:00\n"
 "MIME-Version: 1.0\n"
