@@ -3,8 +3,8 @@ Contributors: alanef
 Donate link: https://alanefortune.com
 Tags: umami, analytics, tracking
 Requires at least: 5.0
-Tested up to: 6.5
-Stable tag: 1.0.0
+Tested up to: 6.8
+Stable tag: 1.0.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -31,6 +31,11 @@ You can find your Website ID in your Umami account under the settings for your w
 1. The Umami Tracking settings page.
 
 == Changelog ==
+
+= 1.0.1 =
+* Fixed script injection to use direct HTML output instead of wp_enqueue_script
+* Updated WordPress compatibility to 6.8
+* Added language POT file
 
 = 1.0.0 =
 * Initial release.
