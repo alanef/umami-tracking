@@ -41,8 +41,8 @@ jobs:
 
     - name: Check version consistency
       run: |
-        PLUGIN_VERSION=$(grep -oP 'Version:\s*\K[\d.]+' umami-tracking/umami-tracking.php)
-        CONSTANT_VERSION=$(grep -oP "UMAMI_TRACKING_VERSION' ,\s*'\K[\d.]+" umami-tracking/umami-tracking.php)
+        PLUGIN_VERSION=$(sed -n 's/ \* Version:\s*\(.*\)/\1/p' umami-tracking/umami-tracking.php)
+        CONSTANT_VERSION=$(sed -n "s/define( 'UMAMI_TRACKING_VERSION', '\(.*\)' );/\1/p" umami-tracking/umami-tracking.php)
         
         echo "Plugin header version: $PLUGIN_VERSION"
         echo "Version constant: $CONSTANT_VERSION"
