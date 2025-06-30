@@ -354,14 +354,13 @@ class Umami_Tracking {
                                 <?php
                                 $roles = wp_roles()->roles;
                                 foreach ( $roles as $role_key => $role ) {
-                                    $checked = in_array( $role_key, $excluded_roles, true ) ? 'checked="checked"' : '';
                                     ?>
                                     <label for="umami_tracking_excluded_roles_<?php echo esc_attr( $role_key ); ?>">
                                         <input type="checkbox" 
                                                id="umami_tracking_excluded_roles_<?php echo esc_attr( $role_key ); ?>"
                                                name="umami_tracking_excluded_roles[]" 
                                                value="<?php echo esc_attr( $role_key ); ?>" 
-                                               <?php echo $checked; ?> />
+                                               <?php checked( in_array( $role_key, $excluded_roles, true ) ); ?> />
                                         <?php echo esc_html( translate_user_role( $role['name'] ) ); ?>
                                     </label><br />
                                     <?php

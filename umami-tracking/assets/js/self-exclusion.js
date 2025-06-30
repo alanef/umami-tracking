@@ -183,8 +183,14 @@
             initAdminBarToggle();
         }
 
-        // Add floating button if enabled (for all users)
+        // Add floating button if enabled
         if (umamiSelfExclusion.showButton) {
+            // For logged-out users, only show button if tracking is ON
+            if (!umamiSelfExclusion.isLoggedIn && isExcluded()) {
+                // Don't show button for logged-out users who are excluded
+                return;
+            }
+            
             const button = createToggleButton();
             document.body.appendChild(button);
         }
