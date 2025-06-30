@@ -3,7 +3,7 @@
  * Plugin Name: Umami Tracking
  * Plugin URI:  https://github.com/alanef/umami-tracking
  * Description: Adds Umami tracking script to your website.
- * Version:     1.0.2
+ * Version:     1.1.0
  * Author:      Alan E. Fortune
  * Author URI:  https://alanefortune.com
  * License:     GPL2
@@ -16,7 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
-define( 'UMAMI_TRACKING_VERSION', '1.0.2' );
+define( 'UMAMI_TRACKING_VERSION', '1.1.0' );
 define( 'UMAMI_TRACKING_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 
 require_once UMAMI_TRACKING_PLUGIN_DIR . 'includes/class-umami-tracking.php';
