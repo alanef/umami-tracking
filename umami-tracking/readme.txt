@@ -33,7 +33,8 @@ You can find your Website ID in your Umami account under the settings for your w
 == Changelog ==
 
 = 1.0.1 =
-* Fixed script injection to use direct HTML output instead of wp_enqueue_script
+* Fixed script injection using wp_enqueue_script with script_loader_tag filter
+* Added defer attribute and data-website-id to tracking script
 * Updated WordPress compatibility to 6.8
 * Added language POT file
 
