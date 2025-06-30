@@ -6,8 +6,8 @@
 (function() {
     'use strict';
 
-    // Check if user has permission (logged in with appropriate role)
-    if (!umamiSelfExclusion || !umamiSelfExclusion.canExclude) {
+    // Check if we have the required configuration
+    if (!window.umamiSelfExclusion) {
         return;
     }
 
@@ -19,6 +19,20 @@
     }
 
     function toggleExclusion() {
+        // Check if user is logged in and has permission
+        if (!umamiSelfExclusion.isLoggedIn) {
+            // Redirect to login page
+            showNotification(umamiSelfExclusion.messages.loginRequired);
+            setTimeout(function() {
+                window.location.href = umamiSelfExclusion.loginUrl;
+            }, 1500);
+            return;
+        }
+
+        if (!umamiSelfExclusion.canExclude) {
+            return;
+        }
+
         if (isExcluded()) {
             localStorage.removeItem(storageKey);
             updateUI(false);
@@ -32,27 +46,31 @@
 
     function updateUI(excluded) {
         const button = document.getElementById(buttonId);
-        if (!button) return;
-
-        if (excluded) {
-            button.textContent = umamiSelfExclusion.messages.excludedButton;
-            button.classList.add('excluded');
-            button.classList.remove('included');
-        } else {
-            button.textContent = umamiSelfExclusion.messages.includedButton;
-            button.classList.add('included');
-            button.classList.remove('excluded');
+        if (button) {
+            button.textContent = excluded ? 
+                umamiSelfExclusion.messages.excludedButton : 
+                umamiSelfExclusion.messages.includedButton;
+            
+            if (excluded) {
+                button.classList.add('excluded');
+                button.classList.remove('included');
+            } else {
+                button.classList.add('included');
+                button.classList.remove('excluded');
+            }
         }
 
-        // Update admin bar if it exists
-        const adminBarItem = document.getElementById('wp-admin-bar-umami-tracking-toggle');
-        if (adminBarItem) {
-            const link = adminBarItem.querySelector('a');
-            if (link) {
-                link.textContent = excluded ? 
-                    umamiSelfExclusion.messages.adminBarExcluded : 
-                    umamiSelfExclusion.messages.adminBarIncluded;
-                link.className = excluded ? 'umami-excluded' : 'umami-included';
+        // Update admin bar if it exists and user is logged in
+        if (umamiSelfExclusion.showAdminBar) {
+            const adminBarItem = document.getElementById('wp-admin-bar-umami-tracking-toggle');
+            if (adminBarItem) {
+                const link = adminBarItem.querySelector('a');
+                if (link) {
+                    link.textContent = excluded ? 
+                        umamiSelfExclusion.messages.adminBarExcluded : 
+                        umamiSelfExclusion.messages.adminBarIncluded;
+                    link.className = excluded ? 'umami-excluded' : 'umami-included';
+                }
             }
         }
     }
@@ -131,12 +149,18 @@
         });
 
         button.addEventListener('click', toggleExclusion);
+        
+        // Set initial button state
         updateUI(isExcluded());
 
         return button;
     }
 
     function initAdminBarToggle() {
+        if (!umamiSelfExclusion.showAdminBar) {
+            return;
+        }
+
         const adminBarItem = document.getElementById('wp-admin-bar-umami-tracking-toggle');
         if (adminBarItem) {
             const link = adminBarItem.querySelector('a');
@@ -154,10 +178,12 @@
 
     // Initialize based on settings
     document.addEventListener('DOMContentLoaded', function() {
-        // Initialize admin bar toggle
-        initAdminBarToggle();
+        // Initialize admin bar toggle for logged-in users
+        if (umamiSelfExclusion.isLoggedIn && umamiSelfExclusion.canExclude) {
+            initAdminBarToggle();
+        }
 
-        // Add floating button if enabled
+        // Add floating button if enabled (for all users)
         if (umamiSelfExclusion.showButton) {
             const button = createToggleButton();
             document.body.appendChild(button);

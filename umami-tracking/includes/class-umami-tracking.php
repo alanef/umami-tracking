@@ -21,7 +21,7 @@ class Umami_Tracking {
     }
 
     public function enqueue_tracking_script() {
-        // Check if user should be tracked
+        // Check if user should be tracked based on role
         if ( ! $this->should_track_user() ) {
             return;
         }
@@ -30,25 +30,73 @@ class Umami_Tracking {
         $tracker_url = get_option( 'umami_tracking_url', 'https://analytics.example.com/script.js' );
         
         if ( ! empty( $website_id ) && ! empty( $tracker_url ) ) {
-            // Enqueue main Umami tracking script
-            wp_enqueue_script(
-                'umami-tracking',
-                esc_url( $tracker_url ),
-                array(),
-                UMAMI_TRACKING_VERSION,
-                false // Load in head, not footer
-            );
+            // Add inline script to check localStorage before loading Umami
+            $inline_script = "
+            (function() {
+                // Check if user has self-excluded via localStorage
+                if (localStorage.getItem('umami.disabled') === '1') {
+                    return; // Don't load Umami tracking
+                }
+                
+                // Load Umami tracking script dynamically
+                var script = document.createElement('script');
+                script.defer = true;
+                script.src = '" . esc_url( $tracker_url ) . "';
+                script.setAttribute('data-website-id', '" . esc_attr( $website_id ) . "');";
+                
+            // Add optional attributes
+            $host_url = get_option( 'umami_tracking_host_url' );
+            if ( ! empty( $host_url ) ) {
+                $inline_script .= "\n                script.setAttribute('data-host-url', '" . esc_url( $host_url ) . "');";
+            }
+            
+            if ( get_option( 'umami_tracking_do_not_track', false ) ) {
+                $inline_script .= "\n                script.setAttribute('data-do-not-track', 'true');";
+            }
+            
+            $domains = get_option( 'umami_tracking_domains' );
+            if ( ! empty( $domains ) ) {
+                $inline_script .= "\n                script.setAttribute('data-domains', '" . esc_attr( $domains ) . "');";
+            }
+            
+            $inline_script .= "
+                document.head.appendChild(script);
+            })();
+            ";
+            
+            // Add the inline script
+            wp_add_inline_script( 'wp-hooks', $inline_script, 'before' );
+            
+            // Ensure wp-hooks is enqueued
+            wp_enqueue_script( 'wp-hooks' );
 
             // Enqueue external link tracking if enabled
             if ( get_option( 'umami_tracking_track_external_links', false ) ) {
                 $suffix = defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ? '' : '.min';
-                wp_enqueue_script(
-                    'umami-external-link-tracking',
-                    plugin_dir_url( dirname( __FILE__ ) ) . 'assets/js/external-link-tracking' . $suffix . '.js',
-                    array( 'umami-tracking' ), // Depends on main Umami script
-                    UMAMI_TRACKING_VERSION,
-                    true // Load in footer
-                );
+                
+                // Also load external link tracking conditionally
+                $external_link_script = "
+                (function() {
+                    // Only load if not self-excluded
+                    if (localStorage.getItem('umami.disabled') !== '1') {
+                        var checkUmami = setInterval(function() {
+                            if (typeof umami !== 'undefined') {
+                                clearInterval(checkUmami);
+                                var script = document.createElement('script');
+                                script.src = '" . esc_url( plugin_dir_url( dirname( __FILE__ ) ) . 'assets/js/external-link-tracking' . $suffix . '.js' ) . "';
+                                document.body.appendChild(script);
+                            }
+                        }, 100);
+                        
+                        // Stop checking after 5 seconds
+                        setTimeout(function() {
+                            clearInterval(checkUmami);
+                        }, 5000);
+                    }
+                })();
+                ";
+                
+                wp_add_inline_script( 'wp-hooks', $external_link_script, 'after' );
             }
         }
     }
@@ -333,9 +381,9 @@ class Umami_Tracking {
                                            name="umami_tracking_enable_self_exclusion" 
                                            value="1" 
                                            <?php checked( get_option( 'umami_tracking_enable_self_exclusion', true ) ); ?> />
-                                    <?php esc_html_e( 'Enable self-exclusion toggle for logged-in users', 'umami-tracking' ); ?>
+                                    <?php esc_html_e( 'Enable self-exclusion feature', 'umami-tracking' ); ?>
                                 </label>
-                                <p class="description"><?php esc_html_e( 'Allow logged-in users to exclude themselves from tracking using localStorage.', 'umami-tracking' ); ?></p>
+                                <p class="description"><?php esc_html_e( 'Allow users to exclude themselves from tracking using localStorage. When enabled, the tracking script checks localStorage before loading. Logged-in users with appropriate permissions can toggle their tracking status via the admin bar.', 'umami-tracking' ); ?></p>
                                 
                                 <br />
                                 
@@ -345,9 +393,9 @@ class Umami_Tracking {
                                            name="umami_tracking_show_exclusion_button" 
                                            value="1" 
                                            <?php checked( get_option( 'umami_tracking_show_exclusion_button', false ) ); ?> />
-                                    <?php esc_html_e( 'Show floating toggle button on frontend', 'umami-tracking' ); ?>
+                                    <?php esc_html_e( 'Show floating toggle button to all visitors', 'umami-tracking' ); ?>
                                 </label>
-                                <p class="description"><?php esc_html_e( 'Display a floating button that allows users to toggle tracking on/off. Admin bar toggle is always available for capable users.', 'umami-tracking' ); ?></p>
+                                <p class="description"><?php esc_html_e( 'Display a floating button on frontend pages that shows the current tracking status. All visitors can see their tracking status. Logged-out visitors will be redirected to login when clicking the button. Logged-in users with appropriate permissions can toggle tracking on/off directly.', 'umami-tracking' ); ?></p>
                             </fieldset>
                         </td>
                     </tr>
@@ -359,25 +407,37 @@ class Umami_Tracking {
     }
 
     public function enqueue_self_exclusion_script() {
-        // Only for logged-in users with appropriate capabilities
-        if ( ! is_user_logged_in() || ! get_option( 'umami_tracking_enable_self_exclusion', true ) ) {
+        // Check if self-exclusion is enabled
+        if ( ! get_option( 'umami_tracking_enable_self_exclusion', true ) ) {
             return;
         }
 
-        // Check if user has a role that would normally be tracked
-        $excluded_roles = get_option( 'umami_tracking_excluded_roles', array( 'administrator', 'editor' ) );
-        $user = wp_get_current_user();
-        $is_excluded_role = false;
-        
-        foreach ( $user->roles as $role ) {
-            if ( in_array( $role, $excluded_roles, true ) ) {
-                $is_excluded_role = true;
-                break;
+        $show_button = get_option( 'umami_tracking_show_exclusion_button', false );
+        $can_exclude = false;
+        $show_admin_bar = false;
+
+        if ( is_user_logged_in() ) {
+            // Check if user has a role that would normally be tracked
+            $excluded_roles = get_option( 'umami_tracking_excluded_roles', array( 'administrator', 'editor' ) );
+            $user = wp_get_current_user();
+            $is_excluded_role = false;
+            
+            foreach ( $user->roles as $role ) {
+                if ( in_array( $role, $excluded_roles, true ) ) {
+                    $is_excluded_role = true;
+                    break;
+                }
+            }
+
+            // Allow capability check or if user is not in excluded roles
+            if ( current_user_can( 'manage_options' ) || ! $is_excluded_role ) {
+                $can_exclude = true;
+                $show_admin_bar = true;
             }
         }
 
-        // Allow capability check or if user is not in excluded roles
-        if ( current_user_can( 'manage_options' ) || ! $is_excluded_role ) {
+        // Enqueue script if either the button should be shown to all users or user can exclude
+        if ( $show_button || $can_exclude ) {
             $suffix = defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ? '' : '.min';
             wp_enqueue_script(
                 'umami-self-exclusion',
@@ -389,8 +449,11 @@ class Umami_Tracking {
 
             // Localize script
             wp_localize_script( 'umami-self-exclusion', 'umamiSelfExclusion', array(
-                'canExclude' => true,
-                'showButton' => get_option( 'umami_tracking_show_exclusion_button', false ),
+                'canExclude' => $can_exclude,
+                'showButton' => $show_button,
+                'showAdminBar' => $show_admin_bar,
+                'isLoggedIn' => is_user_logged_in(),
+                'loginUrl' => wp_login_url( get_permalink() ),
                 'messages' => array(
                     'excluded' => __( 'You are now excluded from Umami tracking', 'umami-tracking' ),
                     'included' => __( 'You are now included in Umami tracking', 'umami-tracking' ),
@@ -398,6 +461,7 @@ class Umami_Tracking {
                     'includedButton' => __( '📊 Tracking ON', 'umami-tracking' ),
                     'adminBarExcluded' => __( '🚫 Umami: OFF', 'umami-tracking' ),
                     'adminBarIncluded' => __( '📊 Umami: ON', 'umami-tracking' ),
+                    'loginRequired' => __( 'Please log in to manage your tracking preferences', 'umami-tracking' ),
                 ),
             ) );
 

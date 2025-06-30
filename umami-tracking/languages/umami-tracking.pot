@@ -106,7 +106,7 @@ msgid "Enable self-exclusion toggle for logged-in users"
 msgstr ""
 
 #: includes/class-umami-tracking.php:338
-msgid "Allow logged-in users to exclude themselves from tracking using localStorage."
+msgid "Allow logged-in users to exclude themselves from tracking using localStorage. The toggle appears in the admin bar on frontend pages only (admin area is not tracked)."
 msgstr ""
 
 #: includes/class-umami-tracking.php:348
@@ -114,7 +114,7 @@ msgid "Show floating toggle button on frontend"
 msgstr ""
 
 #: includes/class-umami-tracking.php:350
-msgid "Display a floating button that allows users to toggle tracking on/off. Admin bar toggle is always available for capable users."
+msgid "Display a floating button on frontend pages that allows users to toggle tracking on/off. Admin bar toggle is always available for capable users on frontend pages."
 msgstr ""
 
 #: includes/class-umami-tracking.php:395
