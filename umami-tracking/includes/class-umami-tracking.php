@@ -12,15 +12,26 @@ class Umami_Tracking {
     }
 
     private function __construct() {
-        add_action( 'wp_head', array( $this, 'add_tracking_script' ) );
+        add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_tracking_script' ) );
         add_action( 'admin_menu', array( $this, 'add_settings_page' ) );
         add_action( 'admin_init', array( $this, 'register_settings' ) );
     }
 
-    public function add_tracking_script() {
+    public function enqueue_tracking_script() {
         $website_id = get_option( 'umami_tracking_website_id' );
         if ( ! empty( $website_id ) ) {
-            echo '<script defer src="https://analytics.fw9.uk/script.js" data-website-id="' . esc_attr( $website_id ) . '"></script>';
+            wp_enqueue_script(
+                'umami-tracking',
+                'https://analytics.fw9.uk/script.js',
+                array(),
+                null,
+                true
+            );
+            wp_add_inline_script(
+                'umami-tracking',
+                'document.querySelector("script[src=\'https://analytics.fw9.uk/script.js\']").setAttribute("data-website-id", "' . esc_attr( $website_id ) . '");',
+                'before'
+            );
         }
     }
 
@@ -35,7 +46,13 @@ class Umami_Tracking {
     }
 
     public function register_settings() {
-        register_setting( 'umami_tracking_settings', 'umami_tracking_website_id' );
+        register_setting(
+            'umami_tracking_settings',
+            'umami_tracking_website_id',
+            array(
+                'sanitize_callback' => 'sanitize_text_field',
+            )
+        );
     }
 
     public function render_settings_page() {
