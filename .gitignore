@@ -39,3 +39,4 @@ composer.lock
 # Package manager locks (at root level)
 package-lock.json
 yarn.lock
+zipped/

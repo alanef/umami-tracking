@@ -1,4 +1,4 @@
-{
+code for dist is ALL inside ./unmai-tracking{
     "plugins": [
         "./umami-tracking"
     ],
