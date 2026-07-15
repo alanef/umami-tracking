@@ -4,7 +4,7 @@ Donate link: https://alanefortune.com
 Tags: umami, analytics, tracking
 Requires at least: 5.0
 Tested up to: 6.8
-Stable tag: 1.1.0
+Stable tag: 1.2.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -17,6 +17,7 @@ This plugin adds the Umami tracking script to your WordPress site with advanced 
 Features:
 * Custom tracker URL support for self-hosted Umami instances
 * Automatic external link click tracking
+* Custom event tracking script - add your own JavaScript after the tracking tag to capture custom events
 * Self-exclusion toggle using localStorage (per Umami documentation)
 * Admin bar tracking toggle for logged-in users
 * Role-based tracking exclusion (administrators and editors excluded by default)
@@ -43,6 +44,16 @@ You can find your Website ID in your Umami account under the settings for your w
 1. The Umami Tracking settings page.
 
 == Changelog ==
+
+= 1.2.0 =
+* Added custom event tracking script setting - output your own JavaScript immediately after the Umami tag to capture custom events (e.g. listen for DOM events and call window.umami.track())
+
+= 1.1.1 =
+* Fixed script enqueueing to use proper WordPress methods (plugin check compliance)
+* Fixed self-exclusion floating button to hide for logged-out users when tracking is OFF
+* Added debug logging using console.debug instead of console.log
+* Improved settings descriptions for clarity
+* Fixed PHPCS security warnings
 
 = 1.1.0 =
 * Added custom tracker URL setting for self-hosted Umami instances

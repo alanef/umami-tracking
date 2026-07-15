@@ -6,13 +6,22 @@
 (function() {
     'use strict';
 
+    console.debug('[Umami External Link Tracking] Script loaded');
+
     function setupExternalLinkTracking() {
+        console.debug('[Umami External Link Tracking] Setting up external link tracking');
+        
         const eventName = 'external-link';
         const links = document.querySelectorAll('a[href]');
+        let externalLinksFound = 0;
+        let linksProcessed = 0;
+        
+        console.debug('[Umami External Link Tracking] Found', links.length, 'links to check');
         
         links.forEach(function(link) {
             // Skip if it already has umami event
             if (link.hasAttribute('data-umami-event')) {
+                console.debug('[Umami External Link Tracking] Skipping already tracked link:', link.href);
                 return;
             }
             
@@ -24,11 +33,16 @@
                 if (linkUrl.host !== currentUrl.host && linkUrl.protocol.startsWith('http')) {
                     link.setAttribute('data-umami-event', eventName);
                     link.setAttribute('data-umami-event-url', link.href);
+                    externalLinksFound++;
+                    console.debug('[Umami External Link Tracking] Added tracking to external link:', link.href);
                 }
+                linksProcessed++;
             } catch (e) {
-                // Invalid URL, skip
+                console.error('[Umami External Link Tracking] Error processing link:', link.href, e);
             }
         });
+        
+        console.debug('[Umami External Link Tracking] Processed', linksProcessed, 'links, found', externalLinksFound, 'external links');
     }
 
     // Wait for DOM to be ready

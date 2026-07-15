@@ -33,11 +33,14 @@ class Umami_Tracking {
             // Add inline script to check localStorage before loading Umami
             $inline_script = "
             (function() {
+                console.debug('[Umami Loader] Checking if should load Umami tracking');
                 // Check if user has self-excluded via localStorage
                 if (localStorage.getItem('umami.disabled') === '1') {
+                    console.debug('[Umami Loader] User is self-excluded, not loading Umami');
                     return; // Don't load Umami tracking
                 }
                 
+                console.debug('[Umami Loader] Loading Umami tracking script');
                 // Load Umami tracking script dynamically
                 var script = document.createElement('script');
                 script.defer = true;
@@ -60,15 +63,33 @@ class Umami_Tracking {
             }
             
             $inline_script .= "
+                script.onload = function() {
+                    console.debug('[Umami Loader] Umami script loaded successfully');
+                    if (typeof umami !== 'undefined') {
+                        console.debug('[Umami Loader] Umami object is available');
+                    } else {
+                        console.error('[Umami Loader] Umami object not found after script load');
+                    }
+                };
+                script.onerror = function() {
+                    console.error('[Umami Loader] Failed to load Umami script from:', script.src);
+                };
                 document.head.appendChild(script);
             })();
             ";
             
-            // Add the inline script
-            wp_add_inline_script( 'wp-hooks', $inline_script, 'before' );
+            // Enqueue a dummy script as dependency anchor for inline script
+            wp_register_script( 'umami-tracking-loader', '', array(), UMAMI_TRACKING_VERSION, false );
+            wp_enqueue_script( 'umami-tracking-loader' );
             
-            // Ensure wp-hooks is enqueued
-            wp_enqueue_script( 'wp-hooks' );
+            // Add the inline script properly
+            wp_add_inline_script( 'umami-tracking-loader', $inline_script );
+
+            // Output custom event tracking script after the tracker tag
+            $custom_events_script = get_option( 'umami_tracking_custom_events_script' );
+            if ( ! empty( $custom_events_script ) ) {
+                wp_add_inline_script( 'umami-tracking-loader', $custom_events_script );
+            }
 
             // Enqueue external link tracking if enabled
             if ( get_option( 'umami_tracking_track_external_links', false ) ) {
@@ -77,26 +98,49 @@ class Umami_Tracking {
                 // Also load external link tracking conditionally
                 $external_link_script = "
                 (function() {
+                    console.debug('[Umami External Link Loader] Checking if should load external link tracking');
                     // Only load if not self-excluded
                     if (localStorage.getItem('umami.disabled') !== '1') {
+                        console.debug('[Umami External Link Loader] User not excluded, waiting for Umami to load');
+                        var checkCount = 0;
                         var checkUmami = setInterval(function() {
+                            checkCount++;
                             if (typeof umami !== 'undefined') {
+                                console.debug('[Umami External Link Loader] Umami loaded after', checkCount, 'checks, loading external link tracking script');
                                 clearInterval(checkUmami);
                                 var script = document.createElement('script');
                                 script.src = '" . esc_url( plugin_dir_url( dirname( __FILE__ ) ) . 'assets/js/external-link-tracking' . $suffix . '.js' ) . "';
+                                script.onload = function() {
+                                    console.debug('[Umami External Link Loader] External link tracking script loaded successfully');
+                                };
+                                script.onerror = function() {
+                                    console.error('[Umami External Link Loader] Failed to load external link tracking script');
+                                };
                                 document.body.appendChild(script);
+                            } else if (checkCount % 10 === 0) {
+                                console.debug('[Umami External Link Loader] Still waiting for Umami after', checkCount, 'checks');
                             }
                         }, 100);
                         
                         // Stop checking after 5 seconds
                         setTimeout(function() {
+                            if (typeof umami === 'undefined') {
+                                console.error('[Umami External Link Loader] Timeout: Umami not loaded after 5 seconds');
+                            }
                             clearInterval(checkUmami);
                         }, 5000);
+                    } else {
+                        console.debug('[Umami External Link Loader] User is excluded from tracking, not loading external link tracking');
                     }
                 })();
                 ";
                 
-                wp_add_inline_script( 'wp-hooks', $external_link_script, 'after' );
+                // Enqueue a dummy script as dependency anchor for external link tracking
+                wp_register_script( 'umami-external-link-loader', '', array(), UMAMI_TRACKING_VERSION, true );
+                wp_enqueue_script( 'umami-external-link-loader' );
+                
+                // Add the external link tracking script properly
+                wp_add_inline_script( 'umami-external-link-loader', $external_link_script );
             }
         }
     }
@@ -241,6 +285,27 @@ class Umami_Tracking {
                 'default' => false,
             )
         );
+
+        register_setting(
+            'umami_tracking_settings',
+            'umami_tracking_custom_events_script',
+            array(
+                'sanitize_callback' => array( $this, 'sanitize_custom_events_script' ),
+                'default' => '',
+            )
+        );
+    }
+
+    public function sanitize_custom_events_script( $input ) {
+        // Only users allowed to publish unfiltered HTML may save custom JavaScript
+        if ( ! current_user_can( 'unfiltered_html' ) ) {
+            return get_option( 'umami_tracking_custom_events_script', '' );
+        }
+
+        // Strip any <script> wrapper tags - the plugin outputs its own
+        $input = preg_replace( '#</?script[^>]*>#i', '', $input );
+
+        return trim( $input );
     }
 
     public function sanitize_excluded_roles( $input ) {
@@ -326,6 +391,21 @@ class Umami_Tracking {
                                 </label>
                                 <p class="description"><?php esc_html_e( 'Automatically track when visitors click on links to external websites.', 'umami-tracking' ); ?></p>
                             </fieldset>
+                        </td>
+                    </tr>
+                    <tr valign="top">
+                        <th scope="row"><?php esc_html_e( 'Custom Event Tracking Script', 'umami-tracking' ); ?></th>
+                        <td>
+                            <textarea name="umami_tracking_custom_events_script"
+                                      rows="10"
+                                      class="large-text code"
+                                      placeholder="window.addEventListener('broadcaster:widget', function (e) {
+    window.umami && window.umami.track(e.detail.event, {
+        widget: e.detail.widget,
+        mode: e.detail.mode
+    });
+});"><?php echo esc_textarea( get_option( 'umami_tracking_custom_events_script' ) ); ?></textarea>
+                            <p class="description"><?php esc_html_e( 'Optional JavaScript output immediately after the Umami tracking tag. Use this to capture custom events, e.g. listen for a DOM event and call window.umami.track(). Enter JavaScript only - do not include <script> tags. Guard calls with "window.umami &&" so they are skipped when tracking is disabled or self-excluded.', 'umami-tracking' ); ?></p>
                         </td>
                     </tr>
                     <tr valign="top">
