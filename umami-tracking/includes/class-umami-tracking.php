@@ -297,13 +297,26 @@ class Umami_Tracking {
     }
 
     public function sanitize_custom_events_script( $input ) {
-        // Only users allowed to publish unfiltered HTML may save custom JavaScript
+        $stored = get_option( 'umami_tracking_custom_events_script', '' );
+
+        // Storing raw JavaScript requires the unfiltered_html capability. Keep
+        // the existing value if the user lacks it — but NEVER silently: if they
+        // actually tried to change it, tell them exactly why it did not save.
         if ( ! current_user_can( 'unfiltered_html' ) ) {
-            return get_option( 'umami_tracking_custom_events_script', '' );
+            if ( trim( (string) $input ) !== trim( (string) $stored ) ) {
+                add_settings_error(
+                    'umami_tracking_custom_events_script',
+                    'umami_custom_events_cap',
+                    esc_html__( 'Your custom tracking script was NOT saved: your account lacks the "unfiltered_html" capability needed to store JavaScript. This is usually removed by a security plugin (e.g. Wordfence hardening) or, on Multisite, restricted to Super Admins. Sign in as a Super Admin, or temporarily disable the security hardening that removes this capability, save, then re-enable it.', 'umami-tracking' ),
+                    'error'
+                );
+            }
+
+            return $stored;
         }
 
         // Strip any <script> wrapper tags - the plugin outputs its own
-        $input = preg_replace( '#</?script[^>]*>#i', '', $input );
+        $input = preg_replace( '#</?script[^>]*>#i', '', (string) $input );
 
         return trim( $input );
     }
@@ -396,16 +409,27 @@ class Umami_Tracking {
                     <tr valign="top">
                         <th scope="row"><?php esc_html_e( 'Custom Event Tracking Script', 'umami-tracking' ); ?></th>
                         <td>
+                            <?php
+                            // Storing raw JavaScript requires the unfiltered_html capability
+                            // (the WordPress standard for "trusted to enter scripts"). It is
+                            // removed for non-Super-Admins on Multisite and by security plugins
+                            // such as Wordfence hardening. Detect it UP FRONT so the admin is not
+                            // left typing into a field that will silently refuse to save.
+                            $umami_can_edit_js = current_user_can( 'unfiltered_html' );
+                            if ( ! $umami_can_edit_js ) :
+                                ?>
+                                <div class="notice notice-warning inline" style="margin:0 0 8px;">
+                                    <p><?php esc_html_e( 'You cannot edit this field: your account lacks the "unfiltered_html" capability required to save JavaScript. This is commonly removed by a security plugin (e.g. Wordfence hardening) or, on Multisite, is limited to Super Admins. To edit it: sign in as a Super Admin, or temporarily disable the security hardening that removes this capability, save, then re-enable it.', 'umami-tracking' ); ?></p>
+                                </div>
+                            <?php endif; ?>
                             <textarea name="umami_tracking_custom_events_script"
                                       rows="10"
                                       class="large-text code"
-                                      placeholder="window.addEventListener('broadcaster:widget', function (e) {
-    window.umami && window.umami.track(e.detail.event, {
-        widget: e.detail.widget,
-        mode: e.detail.mode
-    });
-});"><?php echo esc_textarea( get_option( 'umami_tracking_custom_events_script' ) ); ?></textarea>
+                                      <?php echo $umami_can_edit_js ? '' : 'readonly'; ?>
+                                      placeholder="<?php esc_attr_e( 'Leave blank, or paste JavaScript to run right after the Umami tag. See the example below.', 'umami-tracking' ); ?>"><?php echo esc_textarea( get_option( 'umami_tracking_custom_events_script' ) ); ?></textarea>
                             <p class="description"><?php esc_html_e( 'Optional JavaScript output immediately after the Umami tracking tag. Use this to capture custom events, e.g. listen for a DOM event and call window.umami.track(). Enter JavaScript only - do not include <script> tags. Guard calls with "window.umami &&" so they are skipped when tracking is disabled or self-excluded.', 'umami-tracking' ); ?></p>
+                            <p class="description" style="margin-bottom:4px;"><strong><?php esc_html_e( 'Example — forward Broadcaster contact-widget events to Umami:', 'umami-tracking' ); ?></strong></p>
+                            <pre class="code" style="margin-top:0;padding:8px;background:#f6f7f7;border:1px solid #dcdcde;overflow:auto;"><?php echo esc_html( "window.addEventListener('broadcaster:widget', function (e) {\n    window.umami && window.umami.track(e.detail.event, {\n        widget: e.detail.widget,\n        mode: e.detail.mode\n    });\n});" ); ?></pre>
                         </td>
                     </tr>
                     <tr valign="top">

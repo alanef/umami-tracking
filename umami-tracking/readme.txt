@@ -4,7 +4,7 @@ Donate link: https://alanefortune.com
 Tags: umami, analytics, tracking
 Requires at least: 5.0
 Tested up to: 7.1
-Stable tag: 1.2.0
+Stable tag: 1.2.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -44,6 +44,10 @@ You can find your Website ID in your Umami account under the settings for your w
 1. The Umami Tracking settings page.
 
 == Changelog ==
+
+= 1.2.1 =
+* Custom Event Tracking Script now detects up front when the account lacks the `unfiltered_html` capability (removed by some security plugins, or limited to Super Admins on Multisite): the field is shown read-only with a clear explanation, and a save that would be blocked now shows an error instead of silently discarding the change.
+* Fixed the field placeholder that showed a full example script, which made an empty (unsaved) field look identical to a saved one. The example now lives below the field as copyable documentation.
 
 = 1.2.0 =
 * Added custom event tracking script setting - output your own JavaScript immediately after the Umami tag to capture custom events (e.g. listen for DOM events and call window.umami.track())
