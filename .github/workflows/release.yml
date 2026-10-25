@@ -1,92 +1,201 @@
-name: Release
+# Managed by wordpress-plugin-boilerplate/tooling - fix there first, then run bin/sync-tooling.sh
+name: Build Release
 
 on:
   push:
     tags:
-      - 'v*.*.*'    # Matches v1.7.3
-      - '*.*.*'      # Matches 1.7.3
-      - 'v*.*'       # Matches v2.3
-      - '*.*'        # Matches 2.3
+      - 'v*.*.*'
+      - '*.*.*'
 
 permissions:
   contents: write
 
+env:
+  PLUGIN_DIR: umami-tracking
+  PLUGIN_FILE: umami-tracking/umami-tracking.php
+  SVN_SLUG: umami-tracking
+
 jobs:
-  quality-checks:
+  run-checks:
     uses: ./.github/workflows/checks.yml
 
-  release:
-    needs: quality-checks
-    runs-on: ubuntu-latest
-    
+  build-release:
+    needs: run-checks
+    runs-on: ubuntu-24.04
+
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-    - name: Extract PHP version
-      id: php_version
-      run: |
-        PHP_VERSION=$(grep -oP 'Requires PHP:\s*\K[\d.]+' umami-tracking/umami-tracking.php || echo "7.4")
-        echo "version=$PHP_VERSION" >> $GITHUB_OUTPUT
+      # Where a release goes is a property of the plugin, not of the workflow,
+      # so it is read from the plugin's own readme.txt and the same CI serves
+      # every repo. Omitting the header is the safe default: GitHub only,
+      # nothing published anywhere public by accident. A value that is present
+      # but unrecognised is a typo, not a choice, so it stops the release
+      # rather than silently falling back to that default.
+      - name: Resolve deploy targets
+        id: deploy
+        run: |
+          README="$PLUGIN_DIR/readme.txt"
+          TYPE=""
+          if [ -f "$README" ]; then
+            TYPE=$(grep -m1 -iE "^[[:space:]]*Type:" "$README" \
+              | sed -E 's/^[[:space:]]*[Tt][Yy][Pp][Ee]:[[:space:]]*//' \
+              | tr -d ' \r' | tr '[:upper:]' '[:lower:]')
+          fi
+          case "$TYPE" in
+            "")       WPORG=false; FREEMIUS=false; LABEL="GitHub only (no Type: header)" ;;
+            free)     WPORG=true;  FREEMIUS=false; LABEL="GitHub + WordPress.org" ;;
+            freemium) WPORG=true;  FREEMIUS=true;  LABEL="GitHub + WordPress.org + Freemius" ;;
+            premium)  WPORG=false; FREEMIUS=true;  LABEL="GitHub + Freemius" ;;
+            *)
+              echo "::error::Unrecognised \"Type: $TYPE\" in $README. Use free, freemium or premium, or omit the header entirely for GitHub-only."
+              exit 1
+              ;;
+          esac
+          echo "WPORG=$WPORG" >> $GITHUB_OUTPUT
+          echo "FREEMIUS=$FREEMIUS" >> $GITHUB_OUTPUT
+          echo "Type: ${TYPE:-(absent)}"
+          echo "Deploy targets: $LABEL"
+          echo "**Deploy targets:** $LABEL" >> $GITHUB_STEP_SUMMARY
 
-    - name: Setup PHP
-      uses: shivammathur/setup-php@v2
-      with:
-        php-version: ${{ steps.php_version.outputs.version }}
-        tools: composer:v2, wp-cli
-        coverage: none
+      - name: Get required PHP version
+        id: php_version
+        run: |
+          PHP_VERSION=$(grep -m1 "Requires PHP:" "$PLUGIN_FILE" | sed -E 's/.*Requires PHP:[[:space:]]*//' | tr -d ' \r')
+          PHP_VERSION=${PHP_VERSION:-7.4}
+          # The dev tooling (PHPUnit 9, PHPCS 3) needs PHP 7.4+, whatever the plugin itself supports.
+          if [ "$(printf '%s\n' "$PHP_VERSION" 7.4 | sort -V | head -1)" != "7.4" ]; then PHP_VERSION=7.4; fi
+          echo "PHP_VERSION=$PHP_VERSION" >> $GITHUB_OUTPUT
 
-    - name: Verify tag matches plugin version
-      run: |
-        TAG_VERSION=${GITHUB_REF#refs/tags/v}
-        PLUGIN_VERSION=$(grep -oP 'Version:\s*\K[\d.]+' umami-tracking/umami-tracking.php)
-        
-        echo "Tag version: $TAG_VERSION"
-        echo "Plugin version: $PLUGIN_VERSION"
-        
-        if [ "$TAG_VERSION" != "$PLUGIN_VERSION" ]; then
-          echo "Tag version does not match plugin version!"
-          exit 1
-        fi
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ steps.php_version.outputs.PHP_VERSION }}
+          tools: composer:v2, wp-cli
 
-    - name: Install dependencies
-      run: |
-        composer install --prefer-dist --no-progress --no-dev
+      - name: Ensure WP-CLI
+        # setup-php intermittently reports "Could not setup wp-cli" and carries on, so the
+        # build later dies with "wp: command not found". Fetch the phar directly, with
+        # retries, whenever setup-php did not provide it.
+        run: |
+          if command -v wp > /dev/null; then wp --version; exit 0; fi
+          echo "::warning::setup-php did not install WP-CLI - downloading it directly"
+          curl -fsSL --retry 5 --retry-all-errors --retry-delay 3 -o /tmp/wp-cli.phar \
+            https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+          php /tmp/wp-cli.phar --version
+          sudo install -m 0755 /tmp/wp-cli.phar /usr/local/bin/wp
+          wp --version
 
-    - name: Install WP-CLI dist-archive command
-      env:
-        # WP-CLI's bundled Composer rejects the runner's ghs_ token when
-        # GitHub's longer stateless-token format is in play (its oauth-token
-        # validation fails on the format), which makes this step flake. The
-        # token is persisted in a config FILE by setup-php, so clearing env
-        # vars alone is not enough — strip the persisted github-oauth from
-        # every composer home (default + wp-cli's own) and clone the public
-        # command anonymously with empty Composer auth.
-        GITHUB_TOKEN: ""
-        COMPOSER_AUTH: "{}"
-      run: |
-        composer config --global --unset github-oauth.github.com 2>/dev/null || true
-        rm -f "$HOME/.composer/auth.json" \
-              "$HOME/.config/composer/auth.json" \
-              "$HOME/.wp-cli/packages/auth.json" 2>/dev/null || true
-        wp package install wp-cli/dist-archive-command:v3.1.0
+      - name: Install dependencies
+        run: composer install --prefer-dist --no-progress
 
-    - name: Build plugin
-      run: composer run-script build
-        
-    - name: Create GitHub Release
-      uses: softprops/action-gh-release@v1
-      with:
-        files: zipped/umami-tracking.zip
-        body: |
-          Release of Umami Tracking v${{ github.ref_name }}
-          
-          ## Installation
-          1. Download `umami-tracking.zip` from the assets below
-          2. In WordPress admin, go to Plugins > Add New > Upload Plugin
-          3. Choose the downloaded zip file and click Install Now
-          4. Activate the plugin
-          5. Configure your Website ID in Settings > Umami Tracking
-        draft: false
-        prerelease: false
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install WP-CLI dist-archive command
+        env:
+          # See checks.yml for why the token is handed back as http-basic.
+          GITHUB_TOKEN: ""
+          COMPOSER_AUTH: '{"http-basic":{"github.com":{"username":"x-access-token","password":"${{ github.token }}"}}}'
+        run: |
+          composer config --global --unset github-oauth.github.com 2>/dev/null || true
+          rm -f "$HOME/.composer/auth.json" \
+                "$HOME/.config/composer/auth.json" \
+                "$HOME/.wp-cli/packages/auth.json" 2>/dev/null || true
+          wp package install wp-cli/dist-archive-command:v3.1.0
+
+      - name: Build plugin for release
+        run: composer run-script build
+
+      - name: Get version
+        id: get_version
+        run: |
+          VERSION=$(grep -m1 -E "^[[:space:]]*\*?[[:space:]]*Version:" "$PLUGIN_FILE" | sed -E 's/.*Version:[[:space:]]*//' | tr -d ' \r')
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "Building version $VERSION"
+
+      - name: Name the release zip
+        run: cp "zipped/$PLUGIN_DIR-free.zip" "zipped/$PLUGIN_DIR-${{ steps.get_version.outputs.VERSION }}.zip"
+
+      - name: Verify tag matches plugin version
+        run: |
+          PLUGIN_VERSION=${{ steps.get_version.outputs.VERSION }}
+          TAG_VERSION=${GITHUB_REF#refs/tags/}
+          TAG_VERSION=${TAG_VERSION#v}
+          echo "Plugin version: $PLUGIN_VERSION"
+          echo "Git tag version: $TAG_VERSION"
+          if [ "$PLUGIN_VERSION" != "$TAG_VERSION" ]; then
+            echo "::error::Version mismatch between plugin version ($PLUGIN_VERSION) and git tag ($TAG_VERSION)"
+            exit 1
+          fi
+          case "$PLUGIN_VERSION" in
+            *-*)
+              echo "::error::Refusing to release a pre-release version ($PLUGIN_VERSION)"
+              exit 1
+              ;;
+          esac
+          echo "Tag version matches plugin version: $PLUGIN_VERSION"
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ github.ref }}
+          name: Release ${{ steps.get_version.outputs.VERSION }}
+          body: |
+            Release of Umami Tracking v${{ steps.get_version.outputs.VERSION }}
+
+            ## Changes
+            See the [change log](https://github.com/alanef/umami-tracking/blob/master/umami-tracking/changelog.txt) for details.
+
+            ## Installation
+            Download the attached zip file and upload to your WordPress site.
+          draft: false
+          prerelease: false
+          files: |
+            zipped/umami-tracking-${{ steps.get_version.outputs.VERSION }}.zip
+
+      - name: Deploy to WordPress.org
+        if: steps.deploy.outputs.WPORG == 'true'
+        env:
+          SVN_USERNAME: ${{ secrets.SVN_USERNAME }}
+          SVN_PASSWORD: ${{ secrets.SVN_PASSWORD }}
+          VERSION: ${{ steps.get_version.outputs.VERSION }}
+        run: |
+          if [ -z "$SVN_USERNAME" ] || [ -z "$SVN_PASSWORD" ]; then
+            echo "::error::SVN_USERNAME / SVN_PASSWORD secrets are not set - cannot deploy to WordPress.org"
+            exit 1
+          fi
+          sudo apt-get update -q
+          sudo apt-get install -y -q subversion
+
+          mkdir -p svn-tmp
+          cd svn-tmp
+          unzip -q "../zipped/$PLUGIN_DIR-free.zip"
+
+          svn checkout "https://plugins.svn.wordpress.org/$SVN_SLUG/" svn-repo --username "$SVN_USERNAME" --password "$SVN_PASSWORD" --no-auth-cache
+
+          if [ -d "svn-repo/tags/$VERSION" ]; then
+            echo "::error::Tag $VERSION already exists on WordPress.org SVN"
+            exit 1
+          fi
+
+          rsync -a --delete --exclude='.svn' "$PLUGIN_DIR/" svn-repo/trunk/
+
+          cd svn-repo/trunk
+          svn add --force * --auto-props --parents --depth infinity -q || true
+          svn status | grep '^!' | sed 's/^! *//' | xargs -r -I{} svn delete "{}" || true
+
+          cd ..
+
+          # wordpress.org listing assets (banners, icon, screenshots, Playground
+          # blueprint) live in .wordpress-org/ at project root and go to SVN
+          # assets/, beside trunk and tags, in the same commit. They are never
+          # in the plugin zip. README.md there is developer notes, not listing.
+          if [ -d "$GITHUB_WORKSPACE/.wordpress-org" ]; then
+            mkdir -p assets
+            rsync -a --delete --exclude='.svn' --exclude='README.md' "$GITHUB_WORKSPACE/.wordpress-org/" assets/
+            svn add --force assets --auto-props --parents --depth infinity -q || true
+            svn status assets | grep '^!' | sed 's/^! *//' | xargs -r -I{} svn delete "{}" || true
+          fi
+
+          svn cp trunk "tags/$VERSION"
+          svn commit -m "Release version $VERSION" --username "$SVN_USERNAME" --password "$SVN_PASSWORD" --no-auth-cache
+
+          echo "Successfully deployed $VERSION to WordPress.org"

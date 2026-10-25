@@ -1,27 +1,57 @@
 {
-    "name": "alanef/umami-tracking-project",
-    "description": "Development environment for Umami Tracking WordPress plugin",
-    "type": "project",
-    "license": "GPL-2.0-or-later",
-    "config": {
-        "platform": {
-            "php": "7.4"
-        },
-        "allow-plugins": {
-            "dealerdirect/phpcodesniffer-composer-installer": true
-        }
-    },
-    "require-dev": {
-        "squizlabs/php_codesniffer": "^3.7",
-        "wp-coding-standards/wpcs": "^3.0",
-        "phpcompatibility/phpcompatibility-wp": "^2.1",
-        "dealerdirect/phpcodesniffer-composer-installer": "^1.0"
-    },
-    "scripts": {
-        "phpcs": "phpcs",
-        "phpcs-fix": "phpcbf",
-        "phpcs-security": "phpcs -p --standard=phpcs_sec.xml",
-        "phpcompat": "phpcs -p --standard=PHPCompatibilityWP  --ignore=*/vendor/*  --extensions=php --runtime-set testVersion 7.4- umami-tracking",
-        "build": "rm -rf zipped && mkdir -p zipped && wp dist-archive ./umami-tracking ./zipped/umami-tracking.zip --plugin-dirname=umami-tracking"
+  "name": "fullworks/umami-tracking-project",
+  "description": "Development project for the Umami Tracking WordPress plugin",
+  "type": "project",
+  "license": "GPL-2.0-or-later",
+  "authors": [
+    {
+      "name": "alan",
+      "email": "alan@fullworksplugins.com"
     }
+  ],
+  "config": {
+    "platform": {
+      "php": "7.4.33"
+    },
+    "allow-plugins": {
+      "dealerdirect/phpcodesniffer-composer-installer": true
+    }
+  },
+  "require-dev": {
+    "squizlabs/php_codesniffer": "3.*",
+    "wp-coding-standards/wpcs": ">=2.3.0",
+    "phpcompatibility/phpcompatibility-wp": "*",
+    "phpunit/phpunit": "^9.5",
+    "yoast/phpunit-polyfills": "^1.1"
+  },
+  "scripts": {
+    "post-update-cmd": [
+      "@plugin-update",
+      "@make-pot"
+    ],
+    "plugin-update": "if [ -f umami-tracking/composer.json ]; then composer update -d umami-tracking; fi",
+    "make-pot": "mkdir -p umami-tracking/languages && wp i18n make-pot ./umami-tracking ./umami-tracking/languages/umami-tracking.pot --skip-audit --exclude='vendor,includes/vendor,node_modules'",
+    "build": [
+      "if [ -f umami-tracking/composer.json ]; then composer install -d umami-tracking --no-dev; fi",
+      "mkdir -p zipped",
+      "wp dist-archive umami-tracking zipped/umami-tracking-free.zip --force"
+    ],
+    "phpcs": "phpcs umami-tracking -s --standard=phpcs_sec.xml --ignore=*/vendor/* --extensions=php",
+    "compat:8.4": "phpcs umami-tracking -s --standard=PHPCompatibilityWP --ignore=*/vendor/* --extensions=php --runtime-set testVersion 8.4",
+    "compat:8.3": "phpcs umami-tracking -s --standard=PHPCompatibilityWP --ignore=*/vendor/* --extensions=php --runtime-set testVersion 8.3",
+    "compat:8.2": "phpcs umami-tracking -s --standard=PHPCompatibilityWP --ignore=*/vendor/* --extensions=php --runtime-set testVersion 8.2",
+    "compat:8.1": "phpcs umami-tracking -s --standard=PHPCompatibilityWP --ignore=*/vendor/* --extensions=php --runtime-set testVersion 8.1",
+    "compat:8.0": "phpcs umami-tracking -s --standard=PHPCompatibilityWP --ignore=*/vendor/* --extensions=php --runtime-set testVersion 8.0",
+    "compat:7.4": "phpcs umami-tracking -s --standard=PHPCompatibilityWP --ignore=*/vendor/* --extensions=php --runtime-set testVersion 7.4",
+    "check": [
+      "@compat:8.4",
+      "@compat:8.3",
+      "@compat:8.2",
+      "@compat:8.1",
+      "@compat:8.0",
+      "@compat:7.4",
+      "@phpcs"
+    ],
+    "test": "npm test"
+  }
 }

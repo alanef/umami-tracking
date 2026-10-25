@@ -1,11 +1,20 @@
 {
   "name": "umami-tracking-project",
   "version": "1.0.0",
-  "description": "Development environment for Umami Tracking WordPress plugin",
+  "private": true,
+  "description": "Development project for the Umami Tracking WordPress plugin",
+  "author": "Alan Fuller <alan@fullworks.net>",
+  "license": "GPL-2.0-or-later",
   "scripts": {
-    "env:start": "wp-env start",
-    "env:stop": "wp-env stop",
-    "env:destroy": "wp-env destroy"
+    "wp-env": "wp-env",
+    "start": "wp-env start",
+    "stop": "wp-env stop",
+    "destroy": "wp-env destroy",
+    "test": "./run-tests.sh",
+    "test:unit": "./run-tests.sh",
+    "build": "composer run-script build"
   },
-  "license": "GPL-2.0-or-later"
+  "devDependencies": {
+    "@wordpress/env": "^10.25.0"
+  }
 }

@@ -1,57 +1,54 @@
-# Development files
-.git
-.github
-.gitignore
 .distignore
 .editorconfig
-.wp-env.json
-.wp-env.override.json
-
-# Build tools config
-composer.json
-composer.lock
-package.json
-package-lock.json
+.git
+.gitignore
+.github
+.phpunit.result.cache
+.phpcs.xml
 phpcs.xml
 phpcs.xml.dist
 phpunit.xml
 phpunit.xml.dist
-
-# Dependencies and modules
+composer.json
+composer.lock
+package.json
+package-lock.json
 node_modules
-vendor
-
-# IDE files
-.idea
-.vscode
-*.swp
-*.swo
-
-# OS files
+tests
+docs
+*.scss
+*.map
+*.log
+*.cache
 .DS_Store
 Thumbs.db
-
+.idea
+.vscode
+# Development files
+.wp-env.json
+.wp-env.override.json
+# Build tools config
+# Dependencies and modules
+vendor
+# IDE files
+*.swp
+*.swo
+# OS files
 # Build artifacts
 dist
 build
 *.zip
-
 # Tests
-tests
 test
 phpunit
-
 # Documentation (development)
 CONTRIBUTING.md
 DEVELOPMENT.md
-
 # CI/CD
 .travis.yml
 .gitlab-ci.yml
 bitbucket-pipelines.yml
-
 # Other
-*.log
 *.sql
 *.tar.gz
 *.tar

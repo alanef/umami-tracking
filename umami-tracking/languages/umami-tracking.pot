@@ -1,150 +1,185 @@
-# Copyright (C) 2024 Alan E. Fortune
-# This file is distributed under the same license as the Umami Tracking plugin.
+# Copyright (C) 2026 Alan E. Fortune
+# This file is distributed under the GPL2.
 msgid ""
 msgstr ""
-"Project-Id-Version: Umami Tracking 1.1.0\n"
-"Report-Msgid-Bugs-To: https://github.com/alanef/umami-tracking/issues\n"
-"POT-Creation-Date: 2024-01-01 00:00:00+00:00\n"
+"Project-Id-Version: Umami Tracking 1.2.2\n"
+"Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/umami-tracking\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"PO-Revision-Date: 2024-MO-DA HO:MI+ZONE\n"
-"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
-"Language-Team: LANGUAGE <LL@li.org>\n"
+"POT-Creation-Date: 2026-10-25T14:38:29+00:00\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"X-Generator: WP-CLI 2.12.0\n"
+"X-Domain: umami-tracking\n"
 
-#: includes/class-umami-tracking.php:40
-msgid "Umami Tracking Settings"
-msgstr ""
-
-#: includes/class-umami-tracking.php:41
+#. Plugin Name of the plugin
+#: umami-tracking.php
 msgid "Umami Tracking"
 msgstr ""
 
-#: includes/class-umami-tracking.php:52
-msgid "Umami Tracking Settings"
+#. Plugin URI of the plugin
+#: umami-tracking.php
+msgid "https://github.com/alanef/umami-tracking"
 msgstr ""
 
-#: includes/class-umami-tracking.php:60
+#. Description of the plugin
+#: umami-tracking.php
+msgid "Adds Umami tracking script to your website."
+msgstr ""
+
+#. Author of the plugin
+#: umami-tracking.php
+msgid "Alan E. Fortune"
+msgstr ""
+
+#. Author URI of the plugin
+#: umami-tracking.php
+msgid "https://alanefortune.com"
+msgstr ""
+
+#: includes/class-umami-tracking.php:310
+msgid "Your custom tracking script was NOT saved: your account lacks the \"unfiltered_html\" capability needed to store JavaScript. This is usually removed by a security plugin (e.g. Wordfence hardening) or, on Multisite, restricted to Super Admins. Sign in as a Super Admin, or temporarily disable the security hardening that removes this capability, save, then re-enable it."
+msgstr ""
+
+#: includes/class-umami-tracking.php:353
 msgid "Website ID"
 msgstr ""
 
-#: includes/class-umami-tracking.php:135
-msgid "Your Umami website ID"
-msgstr ""
-
-#: includes/class-umami-tracking.php:139
-#: includes/class-umami-tracking.php:143
-msgid "Exclude Roles from Tracking"
-msgstr ""
-
-#: includes/class-umami-tracking.php:161
-msgid "Users with selected roles will not be tracked when logged in."
-msgstr ""
-
-#: includes/class-umami-tracking.php:185
-msgid "Website ID"
-msgstr ""
-
-#: includes/class-umami-tracking.php:192
+#: includes/class-umami-tracking.php:360
 msgid "Your Umami website ID (required)"
 msgstr ""
 
-#: includes/class-umami-tracking.php:196
+#: includes/class-umami-tracking.php:364
 msgid "Tracker Script URL"
 msgstr ""
 
-#: includes/class-umami-tracking.php:202
+#: includes/class-umami-tracking.php:370
 msgid "URL to your Umami tracking script (e.g., https://analytics.example.com/script.js)"
 msgstr ""
 
-#: includes/class-umami-tracking.php:206
+#: includes/class-umami-tracking.php:374
 msgid "Host URL"
 msgstr ""
 
-#: includes/class-umami-tracking.php:212
+#: includes/class-umami-tracking.php:380
 msgid "Override the data collection endpoint (optional). Leave empty to use the same server as the script."
 msgstr ""
 
-#: includes/class-umami-tracking.php:216
+#: includes/class-umami-tracking.php:384
 msgid "Domain Restrictions"
 msgstr ""
 
-#: includes/class-umami-tracking.php:222
+#: includes/class-umami-tracking.php:390
 msgid "Comma-separated list of domains where tracking should be active (e.g., example.com,www.example.com). Leave empty to track on all domains."
 msgstr ""
 
-#: includes/class-umami-tracking.php:226
-msgid "Privacy Settings"
-msgstr ""
-
-#: includes/class-umami-tracking.php:235
-msgid "Respect visitor's Do Not Track browser setting"
-msgstr ""
-
-#: includes/class-umami-tracking.php:237
-msgid "When enabled, visitors who have Do Not Track enabled in their browser will not be tracked."
-msgstr ""
-
-#: includes/class-umami-tracking.php:236
+#: includes/class-umami-tracking.php:394
 msgid "Tracking Features"
 msgstr ""
 
-#: includes/class-umami-tracking.php:245
+#: includes/class-umami-tracking.php:403
 msgid "Track external link clicks"
 msgstr ""
 
-#: includes/class-umami-tracking.php:247
+#: includes/class-umami-tracking.php:405
 msgid "Automatically track when visitors click on links to external websites."
 msgstr ""
 
-#: includes/class-umami-tracking.php:327
+#: includes/class-umami-tracking.php:410
+msgid "Custom Event Tracking Script"
+msgstr ""
+
+#: includes/class-umami-tracking.php:422
+msgid "You cannot edit this field: your account lacks the \"unfiltered_html\" capability required to save JavaScript. This is commonly removed by a security plugin (e.g. Wordfence hardening) or, on Multisite, is limited to Super Admins. To edit it: sign in as a Super Admin, or temporarily disable the security hardening that removes this capability, save, then re-enable it."
+msgstr ""
+
+#: includes/class-umami-tracking.php:429
+msgid "Leave blank, or paste JavaScript to run right after the Umami tag. See the example below."
+msgstr ""
+
+#: includes/class-umami-tracking.php:430
+msgid "Optional JavaScript output immediately after the Umami tracking tag. Use this to capture custom events, e.g. listen for a DOM event and call window.umami.track(). Enter JavaScript only - do not include <script> tags. Guard calls with \"window.umami &&\" so they are skipped when tracking is disabled or self-excluded."
+msgstr ""
+
+#: includes/class-umami-tracking.php:431
+msgid "Example — forward Broadcaster contact-widget events to Umami:"
+msgstr ""
+
+#: includes/class-umami-tracking.php:436
+msgid "Privacy Settings"
+msgstr ""
+
+#: includes/class-umami-tracking.php:445
+msgid "Respect visitor's Do Not Track browser setting"
+msgstr ""
+
+#: includes/class-umami-tracking.php:447
+msgid "When enabled, visitors who have Do Not Track enabled in their browser will not be tracked."
+msgstr ""
+
+#: includes/class-umami-tracking.php:452
+#: includes/class-umami-tracking.php:456
+msgid "Exclude Roles from Tracking"
+msgstr ""
+
+#: includes/class-umami-tracking.php:473
+msgid "Users with selected roles will not be tracked when logged in."
+msgstr ""
+
+#: includes/class-umami-tracking.php:478
 msgid "Self-Exclusion Settings"
 msgstr ""
 
-#: includes/class-umami-tracking.php:336
-msgid "Enable self-exclusion toggle for logged-in users"
+#: includes/class-umami-tracking.php:487
+msgid "Enable self-exclusion feature"
 msgstr ""
 
-#: includes/class-umami-tracking.php:338
-msgid "Allow logged-in users to exclude themselves from tracking using localStorage. The toggle appears in the admin bar on frontend pages only (admin area is not tracked)."
+#: includes/class-umami-tracking.php:489
+msgid "Allow users to exclude themselves from tracking using localStorage. When enabled, the tracking script checks localStorage before loading. Logged-in users with appropriate permissions can toggle their tracking status via the admin bar."
 msgstr ""
 
-#: includes/class-umami-tracking.php:348
-msgid "Show floating toggle button on frontend"
+#: includes/class-umami-tracking.php:499
+msgid "Show floating toggle button to all visitors"
 msgstr ""
 
-#: includes/class-umami-tracking.php:350
-msgid "Display a floating button on frontend pages that allows users to toggle tracking on/off. Admin bar toggle is always available for capable users on frontend pages."
+#: includes/class-umami-tracking.php:501
+msgid "Display a floating button on frontend pages that shows the current tracking status. All visitors can see their tracking status. Logged-out visitors will be redirected to login when clicking the button. Logged-in users with appropriate permissions can toggle tracking on/off directly."
 msgstr ""
 
-#: includes/class-umami-tracking.php:395
+#: includes/class-umami-tracking.php:561
 msgid "You are now excluded from Umami tracking"
 msgstr ""
 
-#: includes/class-umami-tracking.php:396
+#: includes/class-umami-tracking.php:562
 msgid "You are now included in Umami tracking"
 msgstr ""
 
-#: includes/class-umami-tracking.php:397
+#: includes/class-umami-tracking.php:563
 msgid "🚫 Tracking OFF"
 msgstr ""
 
-#: includes/class-umami-tracking.php:398
+#: includes/class-umami-tracking.php:564
 msgid "📊 Tracking ON"
 msgstr ""
 
-#: includes/class-umami-tracking.php:399
+#: includes/class-umami-tracking.php:565
 msgid "🚫 Umami: OFF"
 msgstr ""
 
-#: includes/class-umami-tracking.php:400
+#: includes/class-umami-tracking.php:566
 msgid "📊 Umami: ON"
 msgstr ""
 
-#: includes/class-umami-tracking.php:440
+#: includes/class-umami-tracking.php:567
+msgid "Please log in to manage your tracking preferences"
+msgstr ""
+
+#: includes/class-umami-tracking.php:607
 msgid "Umami"
 msgstr ""
 
-#: includes/class-umami-tracking.php:443
+#: includes/class-umami-tracking.php:610
 msgid "Toggle Umami tracking for your visits"
 msgstr ""

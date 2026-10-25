@@ -1,0 +1,54 @@
+= Unreleased =
+* Added: the plugin now updates itself from its GitHub releases, through the normal WordPress Updates screen.
+* Removed: the GitHub Plugin URI header added in 1.2.2. Git Updater no longer manages this plugin, so the two updaters cannot both offer an update.
+* Changed: the plugin now declares that it requires PHP 7.4 or later.
+
+= 1.2.2 =
+* Added GitHub Plugin URI header so updates can be delivered from GitHub via Git Updater (afragen/git-updater).
+* Updated the donation link.
+
+= 1.2.1 =
+* Custom Event Tracking Script now detects up front when the account lacks the `unfiltered_html` capability (removed by some security plugins, or limited to Super Admins on Multisite): the field is shown read-only with a clear explanation, and a save that would be blocked now shows an error instead of silently discarding the change.
+* Fixed the field placeholder that showed a full example script, which made an empty (unsaved) field look identical to a saved one. The example now lives below the field as copyable documentation.
+
+= 1.2.0 =
+* Added custom event tracking script setting - output your own JavaScript immediately after the Umami tag to capture custom events (e.g. listen for DOM events and call window.umami.track())
+
+= 1.1.1 =
+* Fixed script enqueueing to use proper WordPress methods (plugin check compliance)
+* Fixed self-exclusion floating button to hide for logged-out users when tracking is OFF
+* Added debug logging using console.debug instead of console.log
+* Improved settings descriptions for clarity
+* Fixed PHPCS security warnings
+
+= 1.1.0 =
+* Added custom tracker URL setting for self-hosted Umami instances
+* Added Do Not Track browser setting support
+* Added domain restriction option for staging/development environments
+* Added custom host URL for data collection endpoint override
+* Added automatic external link click tracking
+* Added self-exclusion feature using localStorage (per Umami docs)
+* Added admin bar toggle for tracking on/off
+* Added optional floating button for self-exclusion
+* Moved external link tracking to separate JS file (WordPress compliance)
+* Improved settings page with better organization
+* Changed default tracker URL to use example.com
+
+= 1.0.3 =
+* Added role-based tracking exclusion feature
+* Administrators and Editors are excluded from tracking by default
+* Settings page now allows selecting which roles to exclude
+* Improved privacy for site administrators
+
+= 1.0.2 =
+* Fixed release workflow to properly build plugin zip
+* Updated build process to match other plugins
+
+= 1.0.1 =
+* Fixed script injection using wp_enqueue_script with script_loader_tag filter
+* Added defer attribute and data-website-id to tracking script
+* Updated WordPress compatibility to 6.8
+* Added language POT file
+
+= 1.0.0 =
+* Initial release.
