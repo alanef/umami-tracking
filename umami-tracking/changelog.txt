@@ -1,4 +1,4 @@
-= Unreleased =
+= 1.3.0 =
 * Fixed: a site with no tracker URL loaded the placeholder https://analytics.example.com/script.js and recorded nothing, with no warning. The placeholder is no longer a default, and nothing is added to your pages until the website ID and tracker URL are both set.
 * Fixed: a site that saved its settings while the placeholder was showing kept it as its tracker URL. A URL on an example domain now counts as not set, and the field shows empty so you can enter your real one.
 * Added: an admin notice, "Umami Tracking is not recording any visits", until the website ID and tracker URL are set, with a link to the settings.
