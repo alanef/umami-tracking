@@ -18,6 +18,54 @@ class Umami_Tracking {
         add_filter( 'script_loader_tag', array( $this, 'add_script_attributes' ), 10, 2 );
         add_action( 'admin_bar_menu', array( $this, 'add_admin_bar_toggle' ), 999 );
         add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_self_exclusion_script' ) );
+        add_action( 'admin_notices', array( $this, 'render_not_configured_notice' ) );
+    }
+
+    /**
+     * The saved tracker script URL, or '' when none is set.
+     *
+     * Versions before 1.3.0 defaulted to https://analytics.example.com/script.js, and a site
+     * that saved the settings form kept it. A URL on an example domain (RFC 2606) is a
+     * placeholder, never a real tracker, so it counts as unset.
+     *
+     * @return string
+     */
+    public static function tracker_url() {
+        $url = trim( (string) get_option( 'umami_tracking_url', '' ) );
+        if ( '' === $url ) {
+            return '';
+        }
+        $host = strtolower( (string) wp_parse_url( $url, PHP_URL_HOST ) );
+        if ( '' === $host || preg_match( '/(^|\.)example\.(com|net|org)$/', $host ) ) {
+            return '';
+        }
+        return $url;
+    }
+
+    /**
+     * Whether both the website ID and a real tracker URL are set.
+     *
+     * @return bool
+     */
+    public static function is_configured() {
+        $website_id = trim( (string) get_option( 'umami_tracking_website_id', '' ) );
+        return '' !== $website_id && '' !== self::tracker_url();
+    }
+
+    /**
+     * Tell administrators that nothing is being tracked until the plugin is configured.
+     */
+    public function render_not_configured_notice() {
+        if ( ! current_user_can( 'manage_options' ) || self::is_configured() ) {
+            return;
+        }
+        printf(
+            '<div class="notice notice-warning"><p><strong>%1$s</strong> %2$s <a href="%3$s">%4$s</a></p></div>',
+            esc_html__( 'Umami Tracking is not recording any visits.', 'umami-tracking' ),
+            esc_html__( 'Enter your Umami website ID and tracker script URL to start tracking.', 'umami-tracking' ),
+            esc_url( admin_url( 'options-general.php?page=umami-tracking-settings' ) ),
+            esc_html__( 'Open the settings', 'umami-tracking' )
+        );
     }
 
     public function enqueue_tracking_script() {
@@ -26,122 +74,125 @@ class Umami_Tracking {
             return;
         }
 
+        // Nothing is output until the site has a website ID and a real tracker URL.
+        if ( ! self::is_configured() ) {
+            return;
+        }
+
         $website_id = get_option( 'umami_tracking_website_id' );
-        $tracker_url = get_option( 'umami_tracking_url', 'https://analytics.example.com/script.js' );
+        $tracker_url = self::tracker_url();
+
+        // Add inline script to check localStorage before loading Umami
+        $inline_script = "
+        (function() {
+            console.debug('[Umami Loader] Checking if should load Umami tracking');
+            // Check if user has self-excluded via localStorage
+            if (localStorage.getItem('umami.disabled') === '1') {
+                console.debug('[Umami Loader] User is self-excluded, not loading Umami');
+                return; // Don't load Umami tracking
+            }
+            
+            console.debug('[Umami Loader] Loading Umami tracking script');
+            // Load Umami tracking script dynamically
+            var script = document.createElement('script');
+            script.defer = true;
+            script.src = '" . esc_url( $tracker_url ) . "';
+            script.setAttribute('data-website-id', '" . esc_attr( $website_id ) . "');";
+            
+        // Add optional attributes
+        $host_url = get_option( 'umami_tracking_host_url' );
+        if ( ! empty( $host_url ) ) {
+            $inline_script .= "\n                script.setAttribute('data-host-url', '" . esc_url( $host_url ) . "');";
+        }
         
-        if ( ! empty( $website_id ) && ! empty( $tracker_url ) ) {
-            // Add inline script to check localStorage before loading Umami
-            $inline_script = "
-            (function() {
-                console.debug('[Umami Loader] Checking if should load Umami tracking');
-                // Check if user has self-excluded via localStorage
-                if (localStorage.getItem('umami.disabled') === '1') {
-                    console.debug('[Umami Loader] User is self-excluded, not loading Umami');
-                    return; // Don't load Umami tracking
+        if ( get_option( 'umami_tracking_do_not_track', false ) ) {
+            $inline_script .= "\n                script.setAttribute('data-do-not-track', 'true');";
+        }
+        
+        $domains = get_option( 'umami_tracking_domains' );
+        if ( ! empty( $domains ) ) {
+            $inline_script .= "\n                script.setAttribute('data-domains', '" . esc_attr( $domains ) . "');";
+        }
+        
+        $inline_script .= "
+            script.onload = function() {
+                console.debug('[Umami Loader] Umami script loaded successfully');
+                if (typeof umami !== 'undefined') {
+                    console.debug('[Umami Loader] Umami object is available');
+                } else {
+                    console.error('[Umami Loader] Umami object not found after script load');
                 }
-                
-                console.debug('[Umami Loader] Loading Umami tracking script');
-                // Load Umami tracking script dynamically
-                var script = document.createElement('script');
-                script.defer = true;
-                script.src = '" . esc_url( $tracker_url ) . "';
-                script.setAttribute('data-website-id', '" . esc_attr( $website_id ) . "');";
-                
-            // Add optional attributes
-            $host_url = get_option( 'umami_tracking_host_url' );
-            if ( ! empty( $host_url ) ) {
-                $inline_script .= "\n                script.setAttribute('data-host-url', '" . esc_url( $host_url ) . "');";
-            }
+            };
+            script.onerror = function() {
+                console.error('[Umami Loader] Failed to load Umami script from:', script.src);
+            };
+            document.head.appendChild(script);
+        })();
+        ";
+        
+        // Enqueue a dummy script as dependency anchor for inline script
+        wp_register_script( 'umami-tracking-loader', '', array(), UMAMI_TRACKING_VERSION, false );
+        wp_enqueue_script( 'umami-tracking-loader' );
+        
+        // Add the inline script properly
+        wp_add_inline_script( 'umami-tracking-loader', $inline_script );
+
+        // Output custom event tracking script after the tracker tag
+        $custom_events_script = get_option( 'umami_tracking_custom_events_script' );
+        if ( ! empty( $custom_events_script ) ) {
+            wp_add_inline_script( 'umami-tracking-loader', $custom_events_script );
+        }
+
+        // Enqueue external link tracking if enabled
+        if ( get_option( 'umami_tracking_track_external_links', false ) ) {
+            $suffix = defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ? '' : '.min';
             
-            if ( get_option( 'umami_tracking_do_not_track', false ) ) {
-                $inline_script .= "\n                script.setAttribute('data-do-not-track', 'true');";
-            }
-            
-            $domains = get_option( 'umami_tracking_domains' );
-            if ( ! empty( $domains ) ) {
-                $inline_script .= "\n                script.setAttribute('data-domains', '" . esc_attr( $domains ) . "');";
-            }
-            
-            $inline_script .= "
-                script.onload = function() {
-                    console.debug('[Umami Loader] Umami script loaded successfully');
-                    if (typeof umami !== 'undefined') {
-                        console.debug('[Umami Loader] Umami object is available');
-                    } else {
-                        console.error('[Umami Loader] Umami object not found after script load');
-                    }
-                };
-                script.onerror = function() {
-                    console.error('[Umami Loader] Failed to load Umami script from:', script.src);
-                };
-                document.head.appendChild(script);
+            // Also load external link tracking conditionally
+            $external_link_script = "
+            (function() {
+                console.debug('[Umami External Link Loader] Checking if should load external link tracking');
+                // Only load if not self-excluded
+                if (localStorage.getItem('umami.disabled') !== '1') {
+                    console.debug('[Umami External Link Loader] User not excluded, waiting for Umami to load');
+                    var checkCount = 0;
+                    var checkUmami = setInterval(function() {
+                        checkCount++;
+                        if (typeof umami !== 'undefined') {
+                            console.debug('[Umami External Link Loader] Umami loaded after', checkCount, 'checks, loading external link tracking script');
+                            clearInterval(checkUmami);
+                            var script = document.createElement('script');
+                            script.src = '" . esc_url( plugin_dir_url( dirname( __FILE__ ) ) . 'assets/js/external-link-tracking' . $suffix . '.js' ) . "';
+                            script.onload = function() {
+                                console.debug('[Umami External Link Loader] External link tracking script loaded successfully');
+                            };
+                            script.onerror = function() {
+                                console.error('[Umami External Link Loader] Failed to load external link tracking script');
+                            };
+                            document.body.appendChild(script);
+                        } else if (checkCount % 10 === 0) {
+                            console.debug('[Umami External Link Loader] Still waiting for Umami after', checkCount, 'checks');
+                        }
+                    }, 100);
+                    
+                    // Stop checking after 5 seconds
+                    setTimeout(function() {
+                        if (typeof umami === 'undefined') {
+                            console.error('[Umami External Link Loader] Timeout: Umami not loaded after 5 seconds');
+                        }
+                        clearInterval(checkUmami);
+                    }, 5000);
+                } else {
+                    console.debug('[Umami External Link Loader] User is excluded from tracking, not loading external link tracking');
+                }
             })();
             ";
             
-            // Enqueue a dummy script as dependency anchor for inline script
-            wp_register_script( 'umami-tracking-loader', '', array(), UMAMI_TRACKING_VERSION, false );
-            wp_enqueue_script( 'umami-tracking-loader' );
+            // Enqueue a dummy script as dependency anchor for external link tracking
+            wp_register_script( 'umami-external-link-loader', '', array(), UMAMI_TRACKING_VERSION, true );
+            wp_enqueue_script( 'umami-external-link-loader' );
             
-            // Add the inline script properly
-            wp_add_inline_script( 'umami-tracking-loader', $inline_script );
-
-            // Output custom event tracking script after the tracker tag
-            $custom_events_script = get_option( 'umami_tracking_custom_events_script' );
-            if ( ! empty( $custom_events_script ) ) {
-                wp_add_inline_script( 'umami-tracking-loader', $custom_events_script );
-            }
-
-            // Enqueue external link tracking if enabled
-            if ( get_option( 'umami_tracking_track_external_links', false ) ) {
-                $suffix = defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ? '' : '.min';
-                
-                // Also load external link tracking conditionally
-                $external_link_script = "
-                (function() {
-                    console.debug('[Umami External Link Loader] Checking if should load external link tracking');
-                    // Only load if not self-excluded
-                    if (localStorage.getItem('umami.disabled') !== '1') {
-                        console.debug('[Umami External Link Loader] User not excluded, waiting for Umami to load');
-                        var checkCount = 0;
-                        var checkUmami = setInterval(function() {
-                            checkCount++;
-                            if (typeof umami !== 'undefined') {
-                                console.debug('[Umami External Link Loader] Umami loaded after', checkCount, 'checks, loading external link tracking script');
-                                clearInterval(checkUmami);
-                                var script = document.createElement('script');
-                                script.src = '" . esc_url( plugin_dir_url( dirname( __FILE__ ) ) . 'assets/js/external-link-tracking' . $suffix . '.js' ) . "';
-                                script.onload = function() {
-                                    console.debug('[Umami External Link Loader] External link tracking script loaded successfully');
-                                };
-                                script.onerror = function() {
-                                    console.error('[Umami External Link Loader] Failed to load external link tracking script');
-                                };
-                                document.body.appendChild(script);
-                            } else if (checkCount % 10 === 0) {
-                                console.debug('[Umami External Link Loader] Still waiting for Umami after', checkCount, 'checks');
-                            }
-                        }, 100);
-                        
-                        // Stop checking after 5 seconds
-                        setTimeout(function() {
-                            if (typeof umami === 'undefined') {
-                                console.error('[Umami External Link Loader] Timeout: Umami not loaded after 5 seconds');
-                            }
-                            clearInterval(checkUmami);
-                        }, 5000);
-                    } else {
-                        console.debug('[Umami External Link Loader] User is excluded from tracking, not loading external link tracking');
-                    }
-                })();
-                ";
-                
-                // Enqueue a dummy script as dependency anchor for external link tracking
-                wp_register_script( 'umami-external-link-loader', '', array(), UMAMI_TRACKING_VERSION, true );
-                wp_enqueue_script( 'umami-external-link-loader' );
-                
-                // Add the external link tracking script properly
-                wp_add_inline_script( 'umami-external-link-loader', $external_link_script );
-            }
+            // Add the external link tracking script properly
+            wp_add_inline_script( 'umami-external-link-loader', $external_link_script );
         }
     }
 
@@ -230,7 +281,7 @@ class Umami_Tracking {
             'umami_tracking_url',
             array(
                 'sanitize_callback' => 'esc_url_raw',
-                'default' => 'https://analytics.example.com/script.js',
+                'default' => '',
             )
         );
 
@@ -365,8 +416,10 @@ class Umami_Tracking {
                         <td>
                             <input type="url" 
                                    name="umami_tracking_url" 
-                                   value="<?php echo esc_url( get_option( 'umami_tracking_url', 'https://analytics.example.com/script.js' ) ); ?>"
-                                   class="regular-text code" />
+                                   value="<?php echo esc_url( self::tracker_url() ); ?>"
+                                   placeholder="https://analytics.example.com/script.js"
+                                   class="regular-text code"
+                                   required />
                             <p class="description"><?php esc_html_e( 'URL to your Umami tracking script (e.g., https://analytics.example.com/script.js)', 'umami-tracking' ); ?></p>
                         </td>
                     </tr>
